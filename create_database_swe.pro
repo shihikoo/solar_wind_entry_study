@@ -3,16 +3,18 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
 ;--------------------------------------------------------------------
 ; handling keywords
 ;--------------------------------------------------------------------
-  sc = 2
-  store_tplot = 1
-  output_path = 'output/'
-  save_data = 1
+  sc = 2 
   sc_str = STRING(sc, FORMAT = '(i1.1)')
+
+  output_path = 'output/'
+ 
   sp = 1
+  
+  solar_wind_delay_time_durations =  [[-1.*3600. , 0],[ -2.*3600. , -1.*3600.],[ -3.*3600., -2.*3600.]]
 ;--------------------------------------------------------------------
 ; Settings 
 ;-------------------------------------------------------------------- 
-  bmodel = 'ts04d' 
+  bmodel = 't89d'; 'ts04d' 
   bin_size_pa = 11.25           ; for mms it's 11.25, for codif it's 22.5
   error_message = ''
   
@@ -20,21 +22,60 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
   
 ; read in crossing list  
   crossing_list = READ_CSV('data/sheath_ps_crossing_mms.csv', header = header)
-  n_time = N_ELEMENTS(crossing_list.FIELD01)
+  n_crossing = N_ELEMENTS(crossing_list.FIELD01)
   
-  crossing_number = crossing_list.FIELD01[0:n_time-1]
-  time_start_sheath = crossing_list.FIELD02[0:n_time-1]
-  time_end_sheath = crossing_list.FIELD03[0:n_time-1]
-  time_start_plasmasheet = crossing_list.FIELD04[0:n_time-1]
-  time_end_plasmasheet = crossing_list.FIELD05[0:n_time-1]
-  smooth_turbulent = crossing_list.FIELD06[0:n_time-1]
-  bl = crossing_list.FIELD07[0:n_time-1]
-  dawndusk = crossing_list.FIELD08[0:n_time-1]
-  inbound = crossing_list.FIELD09[0:n_time-1]
-  crossing_pause = crossing_list.FIELD10[0:n_time-1]
-  crossing_ps = crossing_list.FIELD11[0:n_time-1]
+  crossing_number = crossing_list.FIELD01[0:n_crossing-1]
+  time_start_sheath = crossing_list.FIELD02[0:n_crossing-1]
+  time_end_sheath = crossing_list.FIELD03[0:n_crossing-1]
+  time_start_plasmasheet = crossing_list.FIELD04[0:n_crossing-1]
+  time_end_plasmasheet = crossing_list.FIELD05[0:n_crossing-1]
+  smooth_turbulent = crossing_list.FIELD06[0:n_crossing-1]
+  bl = crossing_list.FIELD07[0:n_crossing-1]
+  dawndusk = crossing_list.FIELD08[0:n_crossing-1]
+  inbound = crossing_list.FIELD09[0:n_crossing-1]
+  crossing_pause = crossing_list.FIELD10[0:n_crossing-1]
+  crossing_ps = crossing_list.FIELD11[0:n_crossing-1]
+
+;------------------------------------------------------------------------------------
+;Load all the tplot_names for the routine
+;------------------------------------------------------------------------------------
+  all_tplot_names = load_tplot_names(sc, bmodel)
+
+;------------------------------------------------------------------------------------
+; Variables calculation settings
+;------------------------------------------------------------------------------------
+; locations 
+  varnames_locations = [all_tplot_names.x_gse_name, all_tplot_names.y_gse_name, all_tplot_names.z_gse_name, $
+                        all_tplot_names.y_gsm_name, all_tplot_names.z_gsm_name, $
+                        all_tplot_names.dist_name, all_tplot_names.mlt_name, all_tplot_names.l_name]
+  title_locations = ['xgse','ygse','zgse','ygsm','zgsm','dist','mlt','l']
+  output_location = DBLARR(n_crossing, N_ELEMENTS(varnames_locations))
   
+; moments
+  varnames_moments = [all_tplot_names.bx_name, all_tplot_names.by_gsm_name, all_tplot_names.bz_gsm_name, $
+                     all_tplot_names.h1_density_name, all_tplot_names.he2_density_name,all_tplot_names.mms_alpha_ratio]
+  title_moments = ['bx','by_gsm','bz_gsm', $
+                  'h1_density','he2_density','mms_alpha_ratio']
+  output_type_moments = ['sheath_mean','sheath_std','ps_mean','ps_std']
+  n_outputs_moments = N_ELEMENTS(output_type_moments)
+  titles_moments = []
+  for ii = 0 , N_ELEMENTS(varnames_moments)-1 do titles_moments = [titles_moments, title_moments[ii]+'_'+output_type_moments]
+  output_moments = DBLARR(n_crossing,  N_ELEMENTS(varnames_moments)*4)
+  
+; solar wind
+  varnames_imf = [all_tplot_names.imf_bx_name, all_tplot_names.imf_by_gse_name, all_tplot_names.imf_bz_gse_name, $
+              all_tplot_names.imf_by_gsm_name, all_tplot_names.imf_bz_gsm_name, $
+              all_tplot_names.sw_p_name, all_tplot_names.sw_v_name,all_tplot_names.dst_name]
+  title_imf = ['imf_bx','imf_by_gse','imf_bz_gse','imf_by_gsm','imf_bz_gsm','sw_p','sw_v','dst']
+  output_type_imf = ['1h_mean','1h_std','2h_mean','2h_std','3h_mean','3_std']
+  n_outputs_imf = N_ELEMENTS(output_type_imf)
+  titles_imf = []
+  for ii = 0 , N_ELEMENTS(varnames_imf)-1 do    titles_imf = [titles_imf,title_imf[ii]+'_'+output_type_imf]
+  output_imf = DBLARR(n_crossing,  N_ELEMENTS(varnames_imf)*n_outputs_imf) 
+  
+;---------------------------------------------------------------------  
 ; loop through all crossings
+;---------------------------------------------------------------------
   for icrossing_number = 1, MAX(crossing_number) do begin
 ;------------------------------------
 ; load times for the crossing
@@ -44,23 +85,21 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
      if ct eq 0 then stop
 
      t_crossing_pause = time_double(crossing_pause[index])
+     t_crossing_ps = time_double(crossing_ps[index])
      t_s_sheath = time_double(time_start_sheath[index])
      t_e_sheath = time_double(time_end_sheath[index])
      t_s_plasmasheet = time_double(time_start_plasmasheet[index])
      t_e_plasmasheet = time_double(time_end_plasmasheet[index])
      
      t_s = (t_s_sheath < t_s_plasmasheet) - 3. * 3600.
-;   t_e = t_e_sheath > t_e_plasmasheet
-;   t_s = time_double(EXTRACT_DATE_STRING(time_string(t_s_sheath)))
      t_dt = 6. * 3600.
      t_e = t_s + t_dt
      
      ts = time_string(t_s)
      te = time_string(t_e)
-;     t_dt = t_e - t_s
-     
+
      data_filename = output_path + 'data/output.csv'
-     tplot_filename = output_path + 'tplot/' + STRING(icrossing_number, format='(i1.1)')
+     tplot_filename = output_path + 'tplot/' +  STRCOMPRESS(icrossing_number, /REMOVE_ALL)
      IF NOT KEYWORD_SET(log_filename) THEN log_filename = output_path + 'log.txt'
      timespan, t_s, t_dt,/seconds
      
@@ -70,10 +109,6 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
      tplot_names, names = names
      store_data, DELETE = names
      
-;------------------------------------------------------------------------------------
-;Load all the tplot_names for the routine
-;------------------------------------------------------------------------------------
-     all_tplot_names = load_tplot_names(sc, bmodel)
 ;------------------------------------------------------------------------
 ;If recalc is not set, then read the tplot varialbes
 ;-----------------------------------------------------------------------
@@ -86,25 +121,16 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
            spawn,'gzip -9f '+data_filename+'.tplot'
         ENDIF
      ENDIF
-   
-;----------------------------------------
+     
+;-------------------------------------------------------------------
 ; Load tplot variables     
-;----------------------------------------
+;-------------------------------------------------------------------
      load_tplots_swe, all_tplot_names, sc,sp, bmodel, log_filename = log_filename, data_filename = data_filename, store_tplot = store_tplot
 
 ;---------------------------------------------------------------------
 ; Save tplot varialbes 
 ;---------------------------------------------------------------------
-     IF KEYWORD_SET(store_tplot)  THEN  BEGIN
-        
-; Calculate MMS density ratio
-        get_data, all_tplot_names.h1_density_name, data=h1dens
-        get_data, all_tplot_names.he2_density_name, data=he2dens
-        
-        he2dens_new = INTERPOL(he2dens.y, he2dens.x, h1dens.x)
-; why 0.025 ?
-        store_data, all_tplot_names.mms_alpha_ratio, data={x:h1dens.x, y:he2dens_new*0.025 / h1dens.y}
-        
+     IF KEYWORD_SET(store_tplot)  THEN  BEGIN       
 ; trim the tplot varialbes        
         time_trim_tplot_variable, '*', t_s, t_e
 ; save the data
@@ -116,45 +142,48 @@ pro create_database_swe, sc = sc, store_tplot = store_tplot, output_path = outpu
 ;--------------------------------------------------------------
 ; Overview plots
 ;--------------------------------------------------------------
-     make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = [[t_s_sheath,t_e_sheath],[t_s_plasmasheet,t_e_plasmasheet]],  ps = ps
+     make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = [[t_s_sheath,t_e_sheath],[t_crossing_pause, t_crossing_ps],[t_s_plasmasheet,t_e_plasmasheet]],  ps = ps
 
 ;--------------------------------------------------------------
-; Calculate variables
+; Extract locations
 ;--------------------------------------------------------------
-     varnames = [all_tplot_names.x_gse_name, all_tplot_names.y_gse_name, $
-                 all_tplot_names.z_gse_name,all_tplot_names.x_gsm_name, $
-                 all_tplot_names.y_gsm_name, all_tplot_names.y_gsm_name, $
-                 all_tplot_names.z_gsm_name, all_tplot_names.dist_name, $
-                 all_tplot_names.mlt_name, all_tplot_names.l_name, $
-                 all_tplot_names.bx_name, all_tplot_names.by_gsm_name, $
-                 all_tplot_names.bz_gsm_name,  all_tplot_names.imf_bx_name, $
-                 all_tplot_names.imf_by_gse_name, all_tplot_names.imf_bz_gse_name,$
-                 all_tplot_names.imf_by_gsm_name, all_tplot_names.imf_bz_gsm_name, $
-                 all_tplot_names.sw_v_name, all_tplot_names.sw_p_name, all_tplot_names.dst_name $
-                 ,  all_tplot_names.h1_density_name, all_tplot_names.he2_density_name,all_tplot_names.mms_alpha_ratio]
-     
-     output = DBLARR(n_time,  N_ELEMENTS(varnames),5)
-     
-     for ivar = 0, N_ELEMENTS(varnames)-1 do begin        
-        calculate_stats, varnames(ivar), t_s_sheath, t_e_sheath, output_sheath
-        calculate_stats, varnames(ivar), t_s_plasmasheet, t_e_plasmasheet, output_plasmasheet
-
-        output[index, ivar, *] = [icrossing_number, output_sheath[0], output_sheath[1], output_plasmasheet[0], output_plasmasheet[1]], 
- 
+     time_durations = [t_crossing_pause, t_crossing_pause]
+    
+     for ivar = 0, N_ELEMENTS(varnames_locations)-1 do begin
+        output =  calculate_variable_in_durations(varnames_locations(ivar), time_durations)
+        output_location[icrossing_number-1, ivar] = output[0]
+     endfor 
+;--------------------------------------------------------------
+; Calculate moments before and after crossing
+;--------------------------------------------------------------     
+     time_durations = [[t_s_sheath, t_e_sheath], [t_s_plasmasheet, t_e_plasmasheet]]
+           
+     for ivar = 0, N_ELEMENTS(varnames_moments)-1 do begin
+        output = calculate_variable_in_durations(varnames_moments(ivar),time_durations )
+        output_moments[icrossing_number-1, INDGEN(n_outputs_moments)+ivar*n_outputs_moments] = REFORM(TRANSPOSE(output),1,n_outputs_moments)
      endfor
      
 ;----------------------------------------
-; Calculate solar wind delay     
+; Calculate solar wind delayed   
 ;----------------------------------------
-     names = [all_tplot_names.imf_bx_name, all_tplot_names.imf_by_gse_name, all_tplot_names.imf_bz_gse_name, all_tplot_names.imf_by_gsm_name, all_tplot_names.imf_bz_gsm_name, all_tplot_names.sw_p_name, all_tplot_names.sw_v_name,all_tplot_names.dst_name ]
-     calculate_solarwind_delayed, names, t_crossing_pause, delayed_solarwind_parameter
-     stop
+     time_durations = t_crossing_pause + solar_wind_delay_time_durations
+     
+     for ivar = 0, N_ELEMENTS(varnames_imf)-1 do begin
+        output = calculate_variable_in_durations(varnames_imf(ivar),time_durations )
+        output_imf[icrossing_number-1, INDGEN(n_outputs_imf)+ivar*n_outputs_imf] = REFORM(TRANSPOSE(output),1,n_outputs_imf)
+     endfor   
   endfor
+  
 ;--------------------------------------
 ; Save the data
 ;--------------------------------------    
   IF keyword_set(save_data) THEN  BEGIN
-     save_o_beam_data, data_filename, all_tplot_names
+     headers = [title_locations, titles_moments, titles_imf]
+     output_data = TRANSPOSE([[output_location], [output_moments], [output_imf]])
+     fln_dump = output_path + 'data/' + 'solar_wind_entry_study_output.csv' 
+     WRITE_CSV, fln_dump, output_data, HEADER = headers
+     
+ ;    save_o_beam_data, data_filename, all_tplot_names
   ENDIF 
 
   close, /all

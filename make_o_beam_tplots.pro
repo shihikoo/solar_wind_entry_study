@@ -49,12 +49,21 @@ PRO make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = bars, ps = 
   IF KEYWORD_SET(ps) THEN BEGIN  
      ps_folder = output_path + 'plots/'
      spawn, 'mkdir -p ' + ps_folder
-     fln = ps_folder + 'srv_' + sdate_str + '_' + stime_str + '_mms' + sc_str + '_alphas'
+     fln = ps_folder + 'srv_' + sdate_str + '_' + stime_str + '_mms' + sc_str + '_alphas'+'.ps'
      
      popen, fln, /port
   ENDIF
   
-  tplot, [all_tplot_names.imf_bz_gse_name,all_tplot_names.imf_by_gse_name,all_tplot_names.sw_p_name,all_tplot_names.sw_v_name,all_tplot_names.diffflux_h1_name,all_tplot_names.diffflux_o1_name,all_tplot_names.diffflux_he2_name,all_tplot_names.h1_density_name,all_tplot_names.mms_alpha_ratio], $
+  tplot, [all_tplot_names.imf_bz_gse_name $
+          , all_tplot_names.imf_by_gse_name $
+          , all_tplot_names.sw_p_name $
+          ,all_tplot_names.sw_v_name $
+          ,all_tplot_names.diffflux_h1_name $
+          ,all_tplot_names.diffflux_he2_name $
+          ,all_tplot_names.diffflux_o1_name $
+          ,all_tplot_names.mag_name $
+          ,all_tplot_names.h1_density_name $
+          ,all_tplot_names.mms_alpha_ratio], $
          var_label=[all_tplot_names.dist_name, all_tplot_names.x_gse_name ,all_tplot_names.y_gse_name, all_tplot_names.z_gse_name]
   
   yline, [all_tplot_names.imf_bz_gse_name,all_tplot_names.imf_by_gse_name,all_tplot_names.sw_p_name,all_tplot_names.sw_n_name,all_tplot_names.sw_v_name]
@@ -63,13 +72,13 @@ PRO make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = bars, ps = 
   tplot_panel, v=all_tplot_names.mms_alpha_ratio, o=all_tplot_names.ace_alpha_ratio, psym=3
   tplot_panel, v=all_tplot_names.mms_alpha_ratio, o=all_tplot_names.wind_alpha_proton_ratio, psym=3
   yline, all_tplot_names.mms_alpha_ratio, offset=0.04
-
-  for ibar = 0, N_ELEMENTS(bars) -1 do timebar, bars[ibar]
+  
+  for ibar = 0, N_ELEMENTS(bars) -1 do timebar, bars[ibar], color= FLOOR(ibar/2)+1
   
   IF KEYWORD_SET(ps) THEN BEGIN  
      pclose
      spawn, 'mogrify -format png -alpha opaque -density 150 '+ fln
-     spawn, 'rm -f '+ fln
+;     spawn, 'rm -f '+ fln
   ENDIF ELSE stop
   
 END
