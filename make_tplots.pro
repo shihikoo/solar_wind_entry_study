@@ -6,7 +6,7 @@
 ; Written on 04/15/2021
 ;-------------------------------------------------------------------------
 
-PRO make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = bars, ps = ps
+PRO make_tplots, sc_str, output_path, all_tplot_names, bars = bars, ps = ps
   
   options, '*', 'panel_size', 2
   tplot_options, 'num_lab_min', 6
@@ -42,7 +42,7 @@ PRO make_o_beam_tplots, sc_str, output_path, all_tplot_names, bars = bars, ps = 
   options, all_tplot_names.he2_density_name, 'color', 2
   options, all_tplot_names.ace_alpha_ratio, 'color', 2
   options, all_tplot_names.wind_alpha_proton_ratio, 'color', 6
-  options, all_tplot_names.mms_alpha_ratio, 'ytitle', 'He++/H+!CMMS (black)!CACE (blue)!CWIND (green)'
+  options, all_tplot_names.mms_alpha_ratio, 'ytitle', 'He++/H+!CMMS (black)!CACE (blue)!CWIND (red)'
   options, [all_tplot_names.ace_alpha_ratio,all_tplot_names.wind_alpha_proton_ratio], 'thick', 1
 
 

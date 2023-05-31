@@ -1,6 +1,9 @@
-FUNCTION load_tplot_names, sc, bmodel, energy_range = energy_range
+FUNCTION load_tplot_names, sc, bmodel, energy_range = energy_range, sc_mag = sc_mag
 
   sc_str = STRING(sc, FORMAT = '(i1.1)')
+  if ~keyword_set(sc_mag) then sc_mag = sc
+  sc_mag_str = STRING(sc_mag, FORMAT= '(i1.1)')
+  
   coord = 'GSM'
   
   all_tplot_names = { $
@@ -17,13 +20,15 @@ FUNCTION load_tplot_names, sc, bmodel, energy_range = energy_range
                     ilat_name: 'MMS'+sc_str+'_EPHEM_'+bmodel+'_MLAT', $
                     l_name: 'MMS'+sc_str+'_EPHEM_'+bmodel+'_L_D', $
                     dist_name: 'MMS'+sc_str+'_EPHEM_'+bmodel+'_DIST',$
-                    mag_names: 'MMS' + sc_str + '_FGM_SRVY_MAG_'+coord+'*', $
-                    mag_name:  'MMS' + sc_str + '_FGM_SRVY_MAG_'+coord, $
-                    mag_pressure_name:  'MMS' + sc_str + '_FGM_SRVY_MAG_'+coord+'_MAG_PR', $
-                    bx_name: 'MMS'+sc_str+'_FGM_SRVY_MAG_GSM_X', $
-                    by_gsm_name: 'MMS'+sc_str+'_FGM_SRVY_MAG_GSM_Y', $
-                    bz_gsm_name: 'MMS'+sc_str+'_FGM_SRVY_MAG_GSM_Z', $
-                    bt_name: 'MMS'+sc_str+'_FGM_SRVY_MAG_GSM_T', $
+                    
+                    mag_names: 'MMS' + sc_mag_str + '_FGM_SRVY_MAG_'+coord+'*', $
+                    mag_name:  'MMS' + sc_mag_str + '_FGM_SRVY_MAG_'+coord, $
+                    mag_pressure_name:  'MMS' + sc_mag_str + '_FGM_SRVY_MAG_'+coord+'_MAG_PR', $
+                    bx_name: 'MMS'+sc_mag_str+'_FGM_SRVY_MAG_GSM_X', $
+                    by_gsm_name: 'MMS'+sc_mag_str+'_FGM_SRVY_MAG_GSM_Y', $
+                    bz_gsm_name: 'MMS'+sc_mag_str+'_FGM_SRVY_MAG_GSM_Z', $
+                    bt_name: 'MMS'+sc_mag_str+'_FGM_SRVY_MAG_GSM_T', $
+                    b_theta_name: 'MMS'+sc_mag_str+'_FGM_SRVY_MAG_GSM_TH', $
                     moments_names: 'MMS'+sc_str+'_HPCA_SRVY_L2_*', $
                     h1_pressure_name: 'MMS'+sc_str+'_HPCA_SRVY_L2_h1_pressure' , $  
                     he2_pressure_name: 'MMS'+sc_str+'_HPCA_SRVY_L2_he2_pressure'  , $   
